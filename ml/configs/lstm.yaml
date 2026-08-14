@@ -1,0 +1,42 @@
+# LSTM configuration
+
+# Model architecture
+lstm:
+  lookback_steps: 48          # Historical context window (e.g., 12 hours at 15-min sampling)
+  lstm_units: 64              # Number of LSTM cells
+  dropout_rate: 0.2           # Dropout for regularization
+  num_layers: 1               # Number of stacked LSTM layers
+  dense_units: 32             # Dense layer units before output
+  output_size: 1              # Single-step or multi-step output
+  
+# Training hyperparameters
+training:
+  batch_size: 32
+  epochs: 100
+  learning_rate: 0.001
+  optimizer: "adam"
+  loss_function: "mse"
+  
+  # Early stopping
+  use_early_stopping: true
+  patience_epochs: 10
+  validation_split: 0.2
+  
+  # Regularization
+  l2_regularization: 0.001
+
+# Model versioning
+versioning:
+  model_name: "temperature_lstm"
+  save_format: "keras"  # .keras or .h5
+  save_best_only: true
+  
+# Evaluation
+evaluation:
+  threshold_temperature: 28.5
+  metrics:
+    - mae
+    - rmse
+    - r2
+    - threshold_event_recall
+    - false_alert_rate

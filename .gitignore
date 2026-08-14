@@ -6,3 +6,57 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# ML data and models (never commit large files or trained models)
+ml/data/raw/*
+ml/data/interim/*
+ml/data/processed/*
+ml/data/external/*
+ml/models/*
+!ml/data/raw/.gitkeep
+!ml/data/interim/.gitkeep
+!ml/data/processed/.gitkeep
+!ml/data/external/.gitkeep
+!ml/models/.gitkeep
+!ml/models/README.md
+
+# Python and ML artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+mlflow/
+
+# ML model file formats (gitignore but keep .gitkeep and README)
+*.keras
+*.h5
+*.pt
+*.pth
+*.joblib
+*.pkl
+*.pickle
+*.onnx
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db
+.DS_Store

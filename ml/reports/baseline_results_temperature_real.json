@@ -1,0 +1,14 @@
+{
+  "model": "PersistenceBaseline",
+  "n_samples": 727,
+  "mae": 0.15156348005502068,
+  "rmse": 0.2034494371255731,
+  "r2": 0.998961869380574,
+  "threshold_event_recall": 0.9886363636363636,
+  "false_alert_rate": 0.011363636363636364,
+  "temperature_range": {
+    "min": 11.70528,
+    "max": 31.3013,
+    "mean": 21.9595692434663
+  }
+}

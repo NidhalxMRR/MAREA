@@ -1,0 +1,39 @@
+# Data configuration for MAREA ML
+
+# Raw data sampling rate
+sampling_minutes: 15
+
+# Column names in CSV files
+timestamp_column: timestamp
+temperature_column: temperature
+anomaly_flag_column: anomaly  # Optional
+
+# Valid temperature range (°C)
+# Data outside this range is flagged as potentially invalid
+valid_temperature_range:
+  min: -5.0
+  max: 45.0
+
+# Expected sampling interval tolerance
+# Flags if actual interval deviates by more than this percentage
+sampling_tolerance_percent: 10
+
+# Forecast horizons for multi-step prediction
+# Specified in hours; converted to steps based on sampling_minutes
+forecast_horizons_hours:
+  - 1      # 4 steps (15-min sampling)
+  - 3      # 12 steps
+  - 6      # 24 steps
+  - 12     # 48 steps
+  - 24     # 96 steps
+
+# Train/val/test split ratios
+# Must sum to 1.0; applied chronologically (no shuffling)
+train_val_test_ratio:
+  train: 0.60
+  validation: 0.20
+  test: 0.20
+
+# Data versioning
+# Used to track which dataset version was used
+current_dataset_version: "bizerte_v1"

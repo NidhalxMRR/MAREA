@@ -1,0 +1,25 @@
+# Baseline model configuration
+
+# Persistence (naive) baseline
+persistence:
+  description: "Next value = most recent observed value"
+  # No parameters needed
+
+# Statistical baseline: moving average / seasonal
+statistical:
+  type: "moving_average"
+  
+  # Window sizes for rolling mean (in steps)
+  window_sizes_steps:
+    - 4      # 1 hour (15-min sampling)
+    - 12     # 3 hours
+    - 24     # 6 hours
+  
+  # Use seasonal decomposition?
+  use_seasonal: false
+  seasonal_period_steps: 96  # 24 hours
+
+# Evaluation settings
+evaluation:
+  threshold_temperature: 28.5  # Risk alert threshold (°C)
+  minimum_samples: 100  # Minimum test set size for valid evaluation

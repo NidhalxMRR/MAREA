@@ -1,0 +1,353 @@
+# MAREA ML — Marine Aquaculture Risk & Early-warning Analytics
+
+## Overview
+
+This is the machine-learning module for MAREA, focused on **sea-water temperature forecasting** to support early-warning systems for aquaculture risk.
+
+### System Pipeline
+
+```
+RAW SEA DATA
+     │
+     ▼
+DATA VALIDATION
+     │
+     ▼
+PREPROCESSING
+     │
+     ▼
+FEATURE / WINDOW GENERATION
+     │
+     ├──────────────┐
+     ▼              ▼
+BASELINES         LSTM
+     │              │
+     └──────┬───────┘
+            ▼
+       EVALUATION
+            │
+            ▼
+       BEST MODEL
+            │
+            ▼
+        INFERENCE
+            │
+            ▼
+      MAREA BACKEND
+            │
+            ▼
+     FORECAST + ALERT
+```
+
+---
+
+## Core ML Methodology
+
+### 1. No Random Time-Series Split
+
+Time-series forecasting requires **chronological integrity**. We never randomly shuffle observations.
+
+**Train/Validation/Test Split:**
+```
+PAST ───────────────────────────────→ FUTURE
+
+│     TRAINING     │  VALIDATION  │  TEST   │
+```
+
+- **Training set**: Learn patterns from historical data
+- **Validation set**: Tune hyperparameters and model selection
+- **Test set**: Final unseen evaluation
+
+### 2. No Data Leakage
+
+Critical rules:
+- ✅ Fit scalers, encoders, and feature statistics **using training data only**
+- ✅ Apply trained transformers to validation and test sets
+- ❌ Never fit any preprocessing parameters on validation or test data
+- ❌ Never use future information when computing features
+
+### 3. Baselines First
+
+Before deploying sophisticated models, we establish baseline performance:
+
+1. **Persistence Baseline** (trivial lower-bound)
+   - Prediction: most recent observed temperature
+   - Always needed for sanity check
+
+2. **Statistical Baseline** (simple feature-based)
+   - Lagged features + rolling statistics
+   - Useful before LSTM
+
+3. **Feature-Based ML Model** (sklearn-compatible)
+   - Linear/tree-based regressors with lag/rolling features
+   - Establishes interpretable baseline
+
+4. **LSTM** (deep learning)
+   - Used **only after baselines confirm value**
+   - Investigate if LSTM reduces error > 10% over feature model
+
+### 4. Primary Forecasting Horizons
+
+Typical sea-temperature datasets use 15-minute measurements.
+
+**Standard forecast horizons:**
+```
++1 hour   = 4 steps
++3 hours  = 12 steps
++6 hours  = 24 steps
++12 hours = 48 steps
++24 hours = 96 steps
+```
+
+**Approach:**
+- Do not hardcode horizons in code
+- Store in `configs/*.yaml` for easy adjustment
+- Evaluate all horizons in notebooks
+
+### 5. Anomaly Handling Rule
+
+⚠️ **Do not automatically delete or ignore observations marked as anomalies.**
+
+Anomalies can represent:
+- Sensor calibration errors
+- Genuine extreme environmental events
+- Injected synthetic anomalies for testing
+
+**Proper approach:**
+- Data audit phase inspects anomaly patterns first
+- Domain knowledge determines treatment (filter, flag, or keep)
+- Document all decisions in the audit notebook
+
+---
+
+## Directory Structure
+
+### `data/`
+Contains datasets at various processing stages.
+
+- **`data/raw/`**: Original, unmodified source data
+  - Example: `bizerte_15min_with_anomalies.csv`
+  - Must **never be edited in place**
+  - Gitignored (except `.gitkeep`)
+
+- **`data/interim/`**: Intermediate datasets produced during exploration
+  - Partially cleaned/transformed data
+  - Used within notebooks for intermediate analysis
+  - Gitignored (except `.gitkeep`)
+
+- **`data/processed/`**: Final datasets ready for model training
+  - Fully cleaned, validated, and feature-engineered
+  - Train/validation/test splits stored here
+  - Gitignored (except `.gitkeep`)
+
+- **`data/external/`**: External third-party data
+  - Meteorological data
+  - Tides and waves
+  - Satellite/ocean data
+  - Environmental datasets
+  - Gitignored (except `.gitkeep`)
+
+### `notebooks/`
+Jupyter notebooks following a standard workflow.
+
+- **`01_data_audit.ipynb`**: Raw data inspection
+  - Schema, timestamps, sampling interval, missing values
+  - Duplicate/irregular timestamps, temperature range, gaps
+  - Anomaly flag analysis
+
+- **`02_exploration.ipynb`**: Statistical and temporal analysis
+  - Distributions, seasonality, autocorrelation
+  - Rate of change, anomaly behavior
+
+- **`03_baselines.ipynb`**: Baseline model evaluation
+  - Persistence (naive) baseline
+  - Moving average / seasonal baseline
+
+- **`04_feature_model.ipynb`**: Feature-based ML model
+  - Lag features, rolling statistics
+  - Tree-based or linear regression
+
+- **`05_lstm.ipynb`**: LSTM training and evaluation
+  - Only if baselines justify deep learning
+
+- **`06_evaluation.ipynb`**: Final model comparison
+  - All models on same chronological test period
+  - Metrics summary and visualization
+
+### `src/marea_ml/`
+Reusable Python module (importable as `marea_ml`).
+
+- **`data/`**
+  - `loader.py`: Load CSV, parse timestamps, validate ordering
+  - `validation.py`: Check duplicates, gaps, sampling regularity
+  - `preprocessing.py`: Cleaning, resampling, scaling
+
+- **`features/`**
+  - `temperature_features.py`: Lag, rolling, rate-of-change features
+
+- **`models/`**
+  - `persistence.py`: Naive baseline (most recent value)
+  - `feature_model.py`: Tree/linear feature-based model interface
+  - `lstm.py`: LSTM implementation
+
+- **`evaluation/`**
+  - `metrics.py`: MAE, RMSE, R², and domain-specific metrics (threshold recall, false-alert rate, lead time)
+
+- **`inference/`**
+  - `predictor.py`: Common inference interface for production backend
+
+### `configs/`
+YAML configuration files (no hardcoded hyperparameters in code).
+
+- **`data.yaml`**: Data sampling, column names, forecast horizons
+- **`baseline.yaml`**: Persistence and statistical baseline settings
+- **`lstm.yaml`**: LSTM architecture and training parameters
+
+### `scripts/`
+Standalone Python scripts for automation.
+
+- `audit_data.py`: Run data audit programmatically
+- `train_baseline.py`: Train baseline model
+- `train_lstm.py`: Train LSTM model
+- `evaluate_model.py`: Compare all models
+
+### `models/`
+Trained model binaries (gitignored, except `.gitkeep`).
+
+- Versioned model files: `temperature_lstm_v001.keras`, `temperature_feature_v001.joblib`
+- Associated metadata JSON with version, date, dataset hash, metrics
+
+### `reports/`
+Output artifacts from notebooks and scripts.
+
+- **`figures/`**: Charts, plots (PNG, SVG)
+- **`metrics/`**: JSON/CSV metric summaries
+
+### `tests/`
+Unit tests for data and model code.
+
+- `test_validation.py`: Data validation tests
+- `test_preprocessing.py`: Preprocessing function tests
+- `test_metrics.py`: Metric calculation tests
+
+---
+
+## Environment Setup
+
+### Local Development
+
+1. Create a virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. Install the package in development mode:
+   ```bash
+   pip install -e .
+   ```
+
+4. Launch Jupyter:
+   ```bash
+   jupyter notebook
+   ```
+
+### Google Colab
+
+Notebooks are designed to work in Colab:
+- Use relative paths (avoid Windows-specific paths like `C:\Users\...`)
+- Notebooks can mount Google Drive for data access
+- Long-term: notebooks call shared functions from `marea_ml` package
+
+### CI/CD
+
+The `pyproject.toml` and `requirements.txt` enable standard CI workflows:
+```bash
+pip install -r requirements.txt
+pytest tests/
+```
+
+---
+
+## Model Versioning & Metadata
+
+When a model is trained, save:
+
+**Model File:**
+```
+ml/models/temperature_lstm_v001.keras
+ml/models/temperature_feature_v001.joblib
+```
+
+**Metadata File** (`ml/models/temperature_lstm_v001_metadata.json`):
+```json
+{
+  "model_name": "temperature_lstm_v001",
+  "model_type": "LSTM",
+  "training_date": "2026-08-14",
+  "dataset_version": "bizerte_v1",
+  "dataset_hash": "abc123...",
+  "training_date_range": ["2024-01-01", "2024-12-31"],
+  "validation_date_range": ["2025-01-01", "2025-03-31"],
+  "test_date_range": ["2025-04-01", "2025-06-30"],
+  "features": ["temp_lag_1", "temp_lag_4", "temp_rolling_mean_24"],
+  "lookback_window_steps": 48,
+  "forecast_horizon_hours": 6,
+  "mae": 0.45,
+  "rmse": 0.62,
+  "r2": 0.87
+}
+```
+
+---
+
+## Evaluation Metrics
+
+### Primary Metrics
+- **MAE (Mean Absolute Error)**: Average absolute prediction error
+- **RMSE (Root Mean Squared Error)**: Penalizes large errors more heavily
+
+### Secondary Metrics
+- **R² (Coefficient of Determination)**: Explained variance
+
+### Domain-Specific Metrics (Future)
+- **Threshold-Event Recall**: % of temperature exceedances correctly predicted
+- **False-Alert Rate**: % of false alarms
+- **Warning Lead Time**: Hours between prediction and actual event
+
+---
+
+## No Fake Data
+
+⚠️ **This project does not invent, generate, or use synthetic datasets unless explicitly documented.**
+
+- No random CSV generation
+- No placeholder measurements
+- Real datasets come from established aquaculture monitoring sources
+- All data source documentation kept in `data/external/`
+
+---
+
+## Next Steps
+
+1. **Data Audit**: Load real sea-temperature data into `data/raw/`
+2. **Exploration**: Run `01_data_audit.ipynb` and `02_exploration.ipynb`
+3. **Baseline Training**: Execute `03_baselines.ipynb`
+4. **Feature Engineering**: Develop in `04_feature_model.ipynb`
+5. **Deep Learning**: Only if baselines warrant it → `05_lstm.ipynb`
+6. **Final Comparison**: `06_evaluation.ipynb`
+7. **Production Inference**: Deploy best model via `marea_ml.inference.predictor`
+
+---
+
+## References
+
+- Governance: See `pyproject.toml` for package metadata
+- Dependencies: See `requirements.txt`
+- Testing: See `tests/` directory
+- Configurations: See `configs/` directory
