@@ -27,7 +27,8 @@ def test_root_mean_squared_error():
     y_pred = np.array([1.5, 2.5, 3.5])
     
     rmse = root_mean_squared_error(y_true, y_pred)
-    expected = np.sqrt((0.25 + 0.25 + 0.25))
+    # RMSE is the square root of the mean squared error, not the sum.
+    expected = np.sqrt(np.mean([0.25, 0.25, 0.25]))
     assert np.isclose(rmse, expected)
 
 
@@ -69,9 +70,9 @@ def test_false_alert_rate():
     y_pred = np.array([29.0, 29.0, 29.0])  # All predict event
     threshold = 28.5
     
-    # True events: indices 1, 2 (2 actual)
+    # True event: index 2 only; 28.0 is below the 28.5 threshold.
     # Predicted events: all 3
-    # TP = 2, FP = 1
-    # FAR = FP / (TP + FP) = 1/3
+    # TP = 1, FP = 2
+    # FAR = FP / (TP + FP) = 2/3
     far = false_alert_rate(y_true, y_pred, threshold)
-    assert np.isclose(far, 1.0 / 3.0)
+    assert np.isclose(far, 2.0 / 3.0)
