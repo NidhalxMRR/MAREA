@@ -5,6 +5,7 @@ import { Settings2, Trash2, Zap } from 'lucide-react';
 
 export function Settings() {
   const [thresholds, setThresholds] = useState<Threshold[]>([]);
+  const [isAutoSimulating, setIsAutoSimulating] = useState(false);
 
   useEffect(() => {
     const loadThresholds = () => setThresholds(getThresholds());
@@ -13,23 +14,32 @@ export function Settings() {
     return () => window.removeEventListener('marea-data-updated', loadThresholds);
   }, []);
 
+  useEffect(() => {
+    if (!isAutoSimulating) return;
+
+    const intervalId = window.setInterval(() => {
+      simulateRealtimeData();
+    }, 5000);
+
+    return () => window.clearInterval(intervalId);
+  }, [isAutoSimulating, thresholds]);
+
   const handleUpdate = (sensor_type: SensorType, min: number, max: number) => {
     updateThreshold(sensor_type, min, max);
   };
 
   const simulateRealtimeData = () => {
-    // Generate random data
+    const currentThresholds = getThresholds();
     const sensors: SensorType[] = ['temperature', 'ph', 'salinity', 'turbidity'];
     const randomSensor = sensors[Math.floor(Math.random() * sensors.length)];
-    
-    // Sometimes generate normal data, sometimes anomalous
+
     const isAnomalous = Math.random() > 0.7;
-    const currentThreshold = thresholds.find(t => t.sensor_type === randomSensor);
-    
+    const currentThreshold = currentThresholds.find(t => t.sensor_type === randomSensor);
+
     let value = 0;
     if (currentThreshold) {
       if (isAnomalous) {
-        value = Math.random() > 0.5 
+        value = Math.random() > 0.5
           ? currentThreshold.max_value + (Math.random() * 5)
           : currentThreshold.min_value - (Math.random() * 5);
       } else {
@@ -42,7 +52,7 @@ export function Settings() {
     insertReadings([{
       timestamp: new Date().toISOString(),
       sensor_type: randomSensor,
-      value: value,
+      value,
       unit: getSensorUnit(randomSensor),
       source: 'sonde',
     }]);
@@ -90,6 +100,13 @@ export function Settings() {
               className="w-full flex justify-center items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
             >
               Injecter une mesure de test
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsAutoSimulating(prev => !prev)}
+              className="mt-3 w-full flex justify-center items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200 transition-colors"
+            >
+              {isAutoSimulating ? 'Arrêter la simulation automatique' : 'Démarrer la simulation automatique'}
             </button>
           </div>
         </div>
