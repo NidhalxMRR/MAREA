@@ -75,6 +75,8 @@ def load_temperature_excel(
     timestamp_col: str = "timestamp",
     temperature_col: str = "temperature",
     preferred_sheet: Optional[str] = None,
+    source_timestamp_col: Optional[str] = None,
+    source_temperature_col: Optional[str] = None,
 ) -> pd.DataFrame:
     """Load a raw Excel workbook and keep only the timestamp + temperature columns.
 
@@ -88,15 +90,20 @@ def load_temperature_excel(
 
     excel = pd.ExcelFile(filepath)
     sheet_names = excel.sheet_names
-    sheet_name = preferred_sheet if preferred_sheet in sheet_names else sheet_names[0]
+    if preferred_sheet is not None and preferred_sheet not in sheet_names:
+        raise ValueError(
+            f"Sheet '{preferred_sheet}' not found in {filepath}. "
+            f"Available sheets: {sheet_names}"
+        )
+    sheet_name = preferred_sheet or sheet_names[0]
 
     df = pd.read_excel(filepath, sheet_name=sheet_name)
-    ts_col = _find_timestamp_column(df.columns)
-    temp_col = _find_temperature_column(df.columns)
+    ts_col = source_timestamp_col or _find_timestamp_column(df.columns)
+    temp_col = source_temperature_col or _find_temperature_column(df.columns)
 
-    if ts_col is None:
+    if ts_col is None or ts_col not in df.columns:
         raise ValueError(f"No date/time column found in {filepath}. Available columns: {list(df.columns)}")
-    if temp_col is None:
+    if temp_col is None or temp_col not in df.columns:
         raise ValueError(f"No temperature column found in {filepath}. Available columns: {list(df.columns)}")
 
     out = pd.DataFrame({
@@ -108,6 +115,35 @@ def load_temperature_excel(
         raise ValueError(f"No valid temperature rows were found in {filepath}")
 
     return out
+
+
+def audit_exact_temperature_lag_repetition(
+    df: pd.DataFrame,
+    lag_rows: int = 365,
+    temperature_col: str = "temperature",
+) -> dict:
+    """Report whether temperature values repeat exactly at a fixed row lag.
+
+    This is a provenance diagnostic only. It does not classify the data as
+    measured, modelled, climatological, synthetic, or operationally suitable.
+    """
+    if temperature_col not in df.columns:
+        raise ValueError(f"Column '{temperature_col}' not found")
+    if lag_rows <= 0:
+        raise ValueError("lag_rows must be positive")
+    if len(df) <= lag_rows:
+        raise ValueError("Dataset must contain more rows than lag_rows")
+
+    values = pd.to_numeric(df[temperature_col], errors="raise").to_numpy()
+    matches = values[:-lag_rows] == values[lag_rows:]
+    matching_pairs = int(matches.sum())
+    compared_pairs = int(len(matches))
+    return {
+        "lag_rows": lag_rows,
+        "compared_pairs": compared_pairs,
+        "matching_pairs": matching_pairs,
+        "exact_repetition_detected": matching_pairs == compared_pairs,
+    }
 
 
 def load_temperature_csv(

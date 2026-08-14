@@ -1,0 +1,30 @@
+# Confirmed provenance for the currently available Bizerte temperature series.
+# This dataset is retained for traceability only until the researcher clarifies
+# what its repeated annual profile represents.
+dataset_id: "bizerte_temperature_series_v1"
+operational_forecasting:
+  approved: false
+  status: "pending_researcher_clarification"
+  reason: "Temperature values repeat exactly every 365 consecutive daily rows."
+
+source:
+  workbook: "ml/data/raw/Data_modele_to_Bassiana/Data_modele_to_Bassiana/Wat_physico_chemical_range.xlsx"
+  worksheet: "Physico_Chemical"
+  timestamp_column: "Date"
+  temperature_column: "T (°C)"
+  sampling_frequency: "daily"
+
+verified_content:
+  rows: 3640
+  date_range: ["2004-01-01", "2013-12-18"]
+  fixed_row_repetition:
+    lag_rows: 365
+    matching_pairs: 3275
+    compared_pairs: 3275
+    exact_repetition_detected: true
+
+researcher_question: >-
+  In Wat_physico_chemical_range.xlsx, sheet Physico_Chemical, T (°C) repeats
+  exactly every 365 daily records from 2004 onward. Are these measured
+  observations, modelled/reference values, climatological values, or
+  intentionally repeated simulation data?

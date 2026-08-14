@@ -2,7 +2,10 @@ from pathlib import Path
 
 import pandas as pd
 
-from marea_ml.data.loader import load_temperature_excel
+from marea_ml.data.loader import (
+    audit_exact_temperature_lag_repetition,
+    load_temperature_excel,
+)
 
 
 def test_load_temperature_excel_extracts_temperature_only(tmp_path):
@@ -43,3 +46,16 @@ def test_load_temperature_excel_uses_temperature_column_aliases(tmp_path):
 
     assert list(loaded.columns) == ["timestamp", "temperature"]
     assert loaded["temperature"].tolist() == [19.8, 20.0, 21.2]
+
+
+def test_temperature_repetition_audit_detects_exact_fixed_lag_cycle():
+    df = pd.DataFrame({"temperature": [11.0, 12.0, 13.0] * 3})
+
+    audit = audit_exact_temperature_lag_repetition(df, lag_rows=3)
+
+    assert audit == {
+        "lag_rows": 3,
+        "compared_pairs": 6,
+        "matching_pairs": 6,
+        "exact_repetition_detected": True,
+    }

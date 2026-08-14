@@ -61,6 +61,37 @@ Verified processed dataset stats:
 - Temperature min: 11.70528
 - Temperature max: 31.3013
 
+### Confirmed provenance correction (2026-08-15)
+
+The processed temperature series was traced directly to one raw source:
+
+- Workbook: `Wat_physico_chemical_range.xlsx`
+- Worksheet: `Physico_Chemical`
+- Timestamp column: `Date`
+- Temperature column: `T (°C)`
+- Rows: 3,640 (`2004-01-01` through `2013-12-18`)
+- Sampling frequency: daily (all 3,639 adjacent timestamp intervals are one day)
+
+`temperature_series.csv` matches the raw `Date` + `T (°C)` rows exactly,
+including timestamps and values. The source values repeat exactly at a 365-row
+lag: 3,275 of 3,275 comparable pairs match. This fixed 365-sample cycle is
+already present in the researcher workbook; it was not introduced by the
+extraction script. Leap days remain in the timestamps, so the repeated sequence
+is not aligned to the same calendar date each year.
+
+The pipeline now pins this workbook, sheet, and columns instead of scanning all
+Excel files. The source-specific provenance configuration marks this dataset as
+**not approved for operational forecasting** pending clarification. This is not
+a classification of the values as synthetic, modelled, measured, or
+climatological, and it does not disable the ML package for future approved data.
+
+Unresolved researcher question:
+
+> In Wat_physico_chemical_range.xlsx, sheet Physico_Chemical, T (°C) repeats
+> exactly every 365 daily records from 2004 onward. Are these measured historical
+> observations, generated/modelled reference values, climatological values, or
+> intentionally repeated simulation data?
+
 ## 5) Training and Evaluation Status
 
 Baseline script:
