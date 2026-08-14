@@ -2,10 +2,16 @@
 # This dataset is retained for traceability only until the researcher clarifies
 # what its repeated annual profile represents.
 dataset_id: "bizerte_temperature_series_v1"
+research_model_development:
+  approved: true
+  authorization: "Researcher instruction: use this dataset for MAREA forecasting research."
+
 operational_forecasting:
   approved: false
-  status: "pending_researcher_clarification"
-  reason: "Temperature values repeat exactly every 365 consecutive daily rows."
+  status: "requires_independent_live_site_validation"
+  reason: >-
+    The supplied source repeats exactly every 365 consecutive daily rows and
+    cannot establish independent-year generalization or live site variability.
 
 source:
   workbook: "ml/data/raw/Data_modele_to_Bassiana/Data_modele_to_Bassiana/Wat_physico_chemical_range.xlsx"
@@ -28,3 +34,11 @@ researcher_question: >-
   exactly every 365 daily records from 2004 onward. Are these measured
   observations, modelled/reference values, climatological values, or
   intentionally repeated simulation data?
+
+researcher_statement:
+  dataset_authority: "Researcher-approved project source for forecasting research."
+  stated_history: "Approximately 20 years."
+  supplied_extract_coverage: "2004-01-01 through 2013-12-18 (approximately 10 years)."
+  follow_up: >-
+    If additional historical years are provided, ingest them as separate
+    immutable raw sources and repeat provenance validation before use.

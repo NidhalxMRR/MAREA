@@ -1,0 +1,143 @@
+{
+  "dataset_rows": 3640,
+  "date_range": [
+    "2004-01-01",
+    "2013-12-18"
+  ],
+  "sampling_frequency": "daily",
+  "fixed_row_repetition_audit": {
+    "lag_rows": 365,
+    "compared_pairs": 3275,
+    "matching_pairs": 3275,
+    "exact_repetition_detected": true
+  },
+  "risk_temperature_threshold": null,
+  "horizons": {
+    "1": {
+      "horizon_days": 1,
+      "persistence": {
+        "n_samples": 3639,
+        "mae": 0.15095079417422375,
+        "rmse": 0.2019092805684393,
+        "temperature_change_mae": 0.15095079417422375,
+        "temperature_change_rmse": 0.2019092805684393
+      },
+      "seasonal_persistence_365_days": {
+        "n_samples": 3275,
+        "mae": 0.0,
+        "rmse": 0.0,
+        "temperature_change_mae": 0.0,
+        "temperature_change_rmse": 0.0,
+        "target_date_start": "2004-12-31",
+        "target_date_end": "2013-12-18",
+        "descriptive_upper_temperature_groups": [
+          {
+            "quantile": 0.9,
+            "descriptive_temperature_cutoff": 30.39428,
+            "not_a_risk_threshold": true,
+            "n_samples": 333,
+            "mae": 0.0,
+            "rmse": 0.0,
+            "temperature_change_mae": 0.0,
+            "temperature_change_rmse": 0.0
+          },
+          {
+            "quantile": 0.95,
+            "descriptive_temperature_cutoff": 30.65726,
+            "not_a_risk_threshold": true,
+            "n_samples": 171,
+            "mae": 0.0,
+            "rmse": 0.0,
+            "temperature_change_mae": 0.0,
+            "temperature_change_rmse": 0.0
+          }
+        ]
+      }
+    },
+    "3": {
+      "horizon_days": 3,
+      "persistence": {
+        "n_samples": 3637,
+        "mae": 0.4106502089634314,
+        "rmse": 0.5057357384166932,
+        "temperature_change_mae": 0.4106502089634314,
+        "temperature_change_rmse": 0.5057357384166932
+      },
+      "seasonal_persistence_365_days": {
+        "n_samples": 3275,
+        "mae": 0.0,
+        "rmse": 0.0,
+        "temperature_change_mae": 0.0,
+        "temperature_change_rmse": 0.0,
+        "target_date_start": "2004-12-31",
+        "target_date_end": "2013-12-18",
+        "descriptive_upper_temperature_groups": [
+          {
+            "quantile": 0.9,
+            "descriptive_temperature_cutoff": 30.39428,
+            "not_a_risk_threshold": true,
+            "n_samples": 333,
+            "mae": 0.0,
+            "rmse": 0.0,
+            "temperature_change_mae": 0.0,
+            "temperature_change_rmse": 0.0
+          },
+          {
+            "quantile": 0.95,
+            "descriptive_temperature_cutoff": 30.65726,
+            "not_a_risk_threshold": true,
+            "n_samples": 171,
+            "mae": 0.0,
+            "rmse": 0.0,
+            "temperature_change_mae": 0.0,
+            "temperature_change_rmse": 0.0
+          }
+        ]
+      }
+    },
+    "7": {
+      "horizon_days": 7,
+      "persistence": {
+        "n_samples": 3633,
+        "mae": 0.8507309276080375,
+        "rmse": 0.9978763525881679,
+        "temperature_change_mae": 0.8507309276080375,
+        "temperature_change_rmse": 0.9978763525881679
+      },
+      "seasonal_persistence_365_days": {
+        "n_samples": 3275,
+        "mae": 0.0,
+        "rmse": 0.0,
+        "temperature_change_mae": 0.0,
+        "temperature_change_rmse": 0.0,
+        "target_date_start": "2004-12-31",
+        "target_date_end": "2013-12-18",
+        "descriptive_upper_temperature_groups": [
+          {
+            "quantile": 0.9,
+            "descriptive_temperature_cutoff": 30.39428,
+            "not_a_risk_threshold": true,
+            "n_samples": 333,
+            "mae": 0.0,
+            "rmse": 0.0,
+            "temperature_change_mae": 0.0,
+            "temperature_change_rmse": 0.0
+          },
+          {
+            "quantile": 0.95,
+            "descriptive_temperature_cutoff": 30.65726,
+            "not_a_risk_threshold": true,
+            "n_samples": 171,
+            "mae": 0.0,
+            "rmse": 0.0,
+            "temperature_change_mae": 0.0,
+            "temperature_change_rmse": 0.0
+          }
+        ]
+      }
+    }
+  },
+  "scientific_interpretation": "An exact 365-day seasonal-persistence result demonstrates the deterministic annual-cycle structure of this supplied dataset. It is not independent-year generalization evidence and does not justify feature-model or LSTM training on this dataset alone.",
+  "dataset_id": "bizerte_temperature_series_v1",
+  "configured_risk_temperature_threshold": null
+}

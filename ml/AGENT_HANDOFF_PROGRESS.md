@@ -1,6 +1,6 @@
 # MAREA ML Agent Handoff Progress
 
-Last updated: 2026-08-14
+Last updated: 2026-08-15
 Scope: ML module only (`ml/`) with strict requirement to keep frontend unchanged.
 
 ## 1) Mission and Constraints Received
@@ -81,11 +81,20 @@ is not aligned to the same calendar date each year.
 
 The pipeline now pins this workbook, sheet, and columns instead of scanning all
 Excel files. The source-specific provenance configuration marks this dataset as
-**not approved for operational forecasting** pending clarification. This is not
-a classification of the values as synthetic, modelled, measured, or
-climatological, and it does not disable the ML package for future approved data.
+approved for researcher-authorized model development, but **not approved for
+operational forecasting validation on its own**. The exact 365-row pattern means
+ordinary chronological scores are not independent-year generalization evidence;
+validated live IoT site measurements are needed for that purpose.
 
-Unresolved researcher question:
+The researcher described approximately 20 years of history, while the supplied
+extract covers `2004-01-01` through `2013-12-18` (approximately 10 years). If
+additional files become available, ingest them as separate immutable raw sources
+and repeat the same provenance checks before combining or evaluating them.
+
+The repetition remains a documented observation, not a reclassification of the
+values as synthetic, modelled, measured, or climatological.
+
+Original provenance question retained for future clarification:
 
 > In Wat_physico_chemical_range.xlsx, sheet Physico_Chemical, T (°C) repeats
 > exactly every 365 daily records from 2004 onward. Are these measured historical
@@ -108,6 +117,27 @@ Latest baseline metrics (PersistenceBaseline):
 - `r2`: 0.998961869380574
 - `threshold_event_recall`: 0.9886363636363636
 - `false_alert_rate`: 0.011363636363636364
+
+### Daily reference-baseline phase (2026-08-15)
+
+The supplied source supports daily—not 15-minute—evaluation. The generic
+15-minute configuration remains reserved for the future validated IoT pipeline.
+For this researcher profile, evaluate only the configurable daily horizons of 1,
+3, and 7 days with persistence and 365-day seasonal persistence.
+
+Report MAE/RMSE for temperature and temperature change, plus descriptive
+upper-temperature quantile groups. These groups are analytical rankings, not
+aquaculture danger limits: no biological risk threshold is set or inferred.
+Because every valid 365-row comparison is exact, the seasonal-persistence
+baseline is expected to have zero MAE/RMSE wherever that lag is available. That
+is a scientific result about the supplied deterministic annual structure, not a
+reason to train a feature model or LSTM that merely reproduces it.
+
+Production direction: the researcher series is the expected seasonal reference;
+validated live IoT readings will supply actual site behavior, deviation
+monitoring, independent validation, and future versioned retraining data. Raw
+IoT data must be immutable and validated before it is promoted for inference or
+retraining.
 
 ## 6) Tests Added and Verification
 
