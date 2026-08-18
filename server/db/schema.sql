@@ -11,9 +11,9 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- 1. TELEMETRY READINGS TABLE (17-Field IoT Contract)
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS telemetry_readings (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID DEFAULT uuid_generate_v4(),
     time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    node_name VARCHAR(64) NOT NULL,
+    node_name TEXT NOT NULL,
     seq BIGINT NOT NULL,
     
     -- Temperature (DS18B20)
@@ -42,7 +42,8 @@ CREATE TABLE IF NOT EXISTS telemetry_readings (
     snr DOUBLE PRECISION NOT NULL DEFAULT 8.0,
     
     -- Metadata
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (id, time)
 );
 
 -- Index on time and node for ultra-fast range queries
