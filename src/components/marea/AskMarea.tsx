@@ -95,7 +95,32 @@ export function AskMarea({
     const thresholds = getThresholds();
     const latestTemp = getLatestReading('temperature');
 
-    // If Gemini API Key is configured, use live Gemini 1.5 Flash with strict guardrails
+    // 1. Try Backend /api/chat endpoint first (which uses server GEMINI_API_KEY)
+    try {
+      const serverRes = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: queryText })
+      });
+
+      if (serverRes.ok) {
+        const serverData = await serverRes.json();
+        if (serverData.success && serverData.message) {
+          const assistantMsg: Message = {
+            role: "assistant",
+            content: serverData.message,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          };
+          setChatHistory((prev) => [...prev, assistantMsg]);
+          setIsThinking(false);
+          return;
+        }
+      }
+    } catch (err) {
+      console.log('Backend chat API offline or unreachable, checking client-side options...');
+    }
+
+    // 2. If client-side Gemini API Key is configured in browser
     if (apiKey) {
       try {
         const systemPrompt = `You are MAREA Environmental Intelligence Assistant for Project MAREA and Bizerte Lagoon Marine Aquaculture Zone in Tunisia.

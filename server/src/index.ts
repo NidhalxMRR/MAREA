@@ -7,6 +7,7 @@ import { initDatabase } from './db.js';
 import { telemetryRouter } from './routes/telemetry.js';
 import { forecastRouter } from './routes/forecast.js';
 import { alertsRouter } from './routes/alerts.js';
+import { chatRouter } from './routes/chat.js';
 
 dotenv.config();
 
@@ -24,6 +25,7 @@ app.use(express.json());
 app.use('/api/telemetry', telemetryRouter);
 app.use('/api/forecast', forecastRouter);
 app.use('/api/alerts', alertsRouter);
+app.use('/api/chat', chatRouter);
 
 // Health check endpoint for Docker & K8s probes
 app.get('/api/health', (_req, res) => {

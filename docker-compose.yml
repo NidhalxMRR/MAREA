@@ -37,6 +37,7 @@ services:
       NODE_ENV: production
       PORT: 5000
       DATABASE_URL: postgres://marea:marea_secret_2026@marea-db:5432/marea_db
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
     ports:
       - "5000:5000"
     depends_on:
