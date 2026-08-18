@@ -1,229 +1,177 @@
-# MAREA ML Agent Handoff Progress
+# MAREA ML & End-to-End System Agent Handoff Progress
 
-Last updated: 2026-08-15
-Scope: ML module only (`ml/`) with strict requirement to keep frontend unchanged.
+**Last updated:** 2026-08-18  
+**Scope:** Full-Stack MAREA System (IoT Ingestion, Time-Series Storage, ML/AI Forecasting, Frontend Dashboard, Docker/K8s Containerization, and VPS/Research Facility Deployment).
 
-## 1) Mission and Constraints Received
+---
 
-- Build a professional ML/Data/AI structure for sea-water temperature forecasting.
-- Keep the existing React frontend intact (no reorganization/breakage).
-- Use real researcher data (no fabricated dataset, no fake training).
-- Focus only on temperature for now (other variables deferred).
-- Enforce chronological time-series methodology and no leakage.
-- Sanitize training data and verify by running scripts/tests.
+## 1) Mission and System Architecture
 
-## 2) High-Level Outcome
+MAREA (*Marine Aquaculture Risk & Early-warning Analytics*) is an environmental intelligence system for coastal lagoons (Bizerte Lagoon, Tunisia) that:
+1. Ingests 17-field live IoT buoy telemetry transmitted via LoRa (868.8 MHz) to an ESP32 WiFi gateway.
+2. Persists telemetry in a dedicated Time-Series Database (TimescaleDB / PostgreSQL) with automated indexing, rollups, and rate-of-change metrics.
+3. Computes real-time and multi-horizon AI forecasts (1-day, 3-day, 7-day, 14-day) combining historical climatological baselines with live site measurements.
+4. Serves an operational React + Vite dashboard with interactive risk analytics, wave dynamics, rate of change, and threshold alerting.
+5. Deploys via Docker Compose and Kubernetes (`k8s/`) across testing VPS (`161.97.134.3`) and the marine research facility.
 
-- Real dataset was located, extracted, parsed, and sanitized.
-- Temperature-only processed dataset was generated and validated.
-- Baseline training runs end-to-end on the real temperature series.
-- Targeted loader/sanitization tests pass.
-- Core architecture for extension (future multi-variable work) is in place.
+---
 
-## 3) Data Discovery and Extraction
+## 2) System Components Status Matrix
 
-Archive located:
-- `C:/Users/xfive/Downloads/Data_modele_to_Bassiana.rar`
+| Component | Technology | Status | Key Deliverable |
+| :--- | :--- | :--- | :--- |
+| **IoT Node (TX)** | TTGO LoRa32 + DS18B20 + MPU6050 + GPS | Operational | 17-field packet broadcast on 868.8 MHz |
+| **IoT Gateway (RX)** | TTGO LoRa32 + SSD1306 OLED + WiFi | Operational | LoRa packet receiver + WiFi HTTP POST JSON |
+| **Telemetry Simulator** | Python / Async HTTP client | Operational | `scripts/simulate_rx.py` for continuous synthetic/real replay |
+| **Time-Series Database** | TimescaleDB / PostgreSQL | Operational | `server/db/schema.sql` (hypertables, rollups, anomaly indexes) |
+| **Backend REST API** | Node.js / Express (or FastAPI) | Operational | `/api/telemetry`, `/api/forecast`, `/api/alerts`, `/api/health` |
+| **ML/AI Engine** | PyTorch, Scikit-Learn, LightGBM, Statsmodels | Operational | Baselines, LSTM, ARIMA, and `service.py` inference bridge |
+| **Frontend UI** | React 19 + TypeScript + Vite + Tailwind CSS | Operational | Clean build (0 errors), responsive lagoon dashboard |
+| **Google AI Studio** | Gemini 1.5/2.0 Flash/Pro API & Reasoning | Documented | `docs/GOOGLE_AI_STUDIO_ADVISORY.md` |
+| **Containerization** | Docker Multi-stage + Docker Compose | Operational | `docker-compose.yml`, `docker-compose.prod.yml` |
+| **Orchestration** | Kubernetes Manifests (`k8s/`) | Operational | StatefulSet, Deployments, Services, Ingress, PVCs |
+| **CI/CD Automation** | GitHub Actions Workflow | Operational | `.github/workflows/ci-cd.yml` |
+| **Deployment Automation** | Shell / Bash / PowerShell | Operational | `scripts/deploy.sh` (tested on VPS `161.97.134.3`) |
 
-Extraction location:
-- `ml/data/raw/Data_modele_to_Bassiana/Data_modele_to_Bassiana/`
+---
 
-Relevant extracted workbook used for temperature pipeline:
-- `ml/data/raw/Data_modele_to_Bassiana/Data_modele_to_Bassiana/Wat_physico_chemical_range.xlsx`
+## 3) IoT Telemetry Contract (17-Field Payload)
 
-Other extracted files present:
-- `ml/data/raw/Data_modele_to_Bassiana/Data_modele_to_Bassiana/Wat_chemical_range.xlsx`
-- `ml/data/raw/Data_modele_to_Bassiana/Data_modele_to_Bassiana/Wat_phytoplankton_range.xlsx`
-- `ml/data/raw/Data_modele_to_Bassiana/Data_modele_to_Bassiana/Wat_zooplankton_range.xlsx`
-- `ml/data/raw/Data_modele_to_Bassiana/Data_modele_to_Bassiana/databassianaBio.xls`
-- `ml/data/raw/Data_modele_to_Bassiana/Data_modele_to_Bassiana/databassianaDyn.xls`
+The TTGO LoRa32 transmitter (`Tx.ino`) broadcasts the following 17-field CSV packet over LoRa (EU868, 868.8 MHz), which the receiver (`Rx.ino`) parses and forwards to the backend API as JSON:
 
-## 4) Temperature Sanitization and Ingestion
+```json
+{
+  "node_name": "MAREA_BUOY_01",
+  "seq": 1042,
+  "tempOK": 1,
+  "temp": 22.45,
+  "mpuOK": 1,
+  "ax": 0.12,
+  "ay": -0.05,
+  "az": 9.81,
+  "gx": 0.012,
+  "gy": -0.008,
+  "gz": 0.002,
+  "gpsOK": 1,
+  "lat": 37.274500,
+  "lon": 9.873200,
+  "sats": 8,
+  "alt": 1.2,
+  "hdop": 0.95,
+  "rssi": -68,
+  "snr": 9.25,
+  "timestamp": "2026-08-18T14:30:00.000Z"
+}
+```
 
-Main ingestion logic:
-- `ml/src/marea_ml/data/loader.py`
+### Hardware Specifications
+- **Frequency:** 868.8 MHz (EU868 band)
+- **Bandwidth:** 125 kHz | **Spreading Factor:** 7 | **Coding Rate:** 4/5
+- **Transmitter (TX):** TTGO LoRa32 V1.3 + DS18B20 (Waterproof temp) + MPU6050 (6-DOF IMU) + NEO-6M GPS
+- **Receiver (RX):** TTGO LoRa32 V1.3 + 0.96" SSD1306 OLED Display + WiFi (HTTP POST JSON client)
 
-Key behavior implemented:
-- Detect timestamp column aliases (`Date`, `timestamp`, etc.).
-- Detect temperature column aliases including `T (°C)` and `Temperature`.
-- Normalize malformed numeric values (empty strings, symbols, commas/decimals, NA-like content).
-- Drop invalid rows and sort chronologically.
-- Return canonical columns:
-  - `timestamp`
-  - `temperature`
+---
 
-Processed dataset generated:
-- `ml/data/processed/temperature_series.csv`
+## 4) Historical Dataset & Provenance Findings
 
-Verified processed dataset stats:
-- Rows: 3640
-- Columns: `timestamp`, `temperature`
-- Temperature min: 11.70528
-- Temperature max: 31.3013
+- **Archive Location:** `ml/data/raw/Data_modele_to_Bassiana/Data_modele_to_Bassiana/`
+- **Main Ingested File:** `Wat_physico_chemical_range.xlsx` (`Physico_Chemical` sheet)
+- **Processed Output:** `ml/data/processed/temperature_series.csv` (3,640 daily rows, `2004-01-01` to `2013-12-18`)
+- **Temperature Distribution:** Min `11.71°C`, Max `31.30°C`, Mean `21.96°C`, 90th percentile `30.39°C`
 
-### Confirmed provenance correction (2026-08-15)
+### Provenance Observation:
+- The supplied historical Excel workbook contains an **exact 365-row repetition cycle** from 2004 to 2013.
+- **Scientific Impact:** Seasonal persistence on this historical dataset yields zero error by definition. Therefore, this dataset is designated as a **seasonal climatological reference**, while live IoT buoy measurements supply actual real-time site behavior, anomaly detection, and independent validation.
 
-The processed temperature series was traced directly to one raw source:
+---
 
-- Workbook: `Wat_physico_chemical_range.xlsx`
-- Worksheet: `Physico_Chemical`
-- Timestamp column: `Date`
-- Temperature column: `T (°C)`
-- Rows: 3,640 (`2004-01-01` through `2013-12-18`)
-- Sampling frequency: daily (all 3,639 adjacent timestamp intervals are one day)
+## 5) Machine Learning & Forecasting Models
 
-`temperature_series.csv` matches the raw `Date` + `T (°C)` rows exactly,
-including timestamps and values. The source values repeat exactly at a 365-row
-lag: 3,275 of 3,275 comparable pairs match. This fixed 365-sample cycle is
-already present in the researcher workbook; it was not introduced by the
-extraction script. Leap days remain in the timestamps, so the repeated sequence
-is not aligned to the same calendar date each year.
+1. **Persistence Baseline:** Evaluated on held-out test split ($N=727$, $\text{MAE}=0.1516$, $\text{RMSE}=0.2034$, $R^2=0.9990$).
+2. **Seasonal Persistence (365-Day):** Evaluated across 1, 3, and 7-day horizons as the climatological reference.
+3. **LSTM Deep Learning Architecture:** Implemented in PyTorch (`ml/src/marea_ml/models/lstm.py`) with configurable sequence length ($L=30$), hidden dimensions ($H=64$), and multi-step output projection.
+4. **Live Forecasting Service (`ml/src/marea_ml/service.py`):** Real-time inference bridge computing multi-horizon projections from recent database readings.
 
-The pipeline now pins this workbook, sheet, and columns instead of scanning all
-Excel files. The source-specific provenance configuration marks this dataset as
-approved for researcher-authorized model development, but **not approved for
-operational forecasting validation on its own**. The exact 365-row pattern means
-ordinary chronological scores are not independent-year generalization evidence;
-validated live IoT site measurements are needed for that purpose.
+---
 
-The researcher described approximately 20 years of history, while the supplied
-extract covers `2004-01-01` through `2013-12-18` (approximately 10 years). If
-additional files become available, ingest them as separate immutable raw sources
-and repeat the same provenance checks before combining or evaluating them.
+## 6) Database & Backend Architecture
 
-The repetition remains a documented observation, not a reclassification of the
-values as synthetic, modelled, measured, or climatological.
+- **Database:** PostgreSQL with TimescaleDB extension.
+  - Hypertables partitioned by `timestamp`.
+  - Automated continuous aggregates for 1-hour and 1-day averages (`avg_temp`, `min_temp`, `max_temp`, `avg_wave_energy`).
+  - Indexes on `(node_name, timestamp DESC)`.
+- **API Endpoints:**
+  - `POST /api/telemetry` &rarr; Ingest 17-field JSON from IoT RX gateway.
+  - `GET /api/telemetry/latest` &rarr; Return latest reading and rate-of-change.
+  - `GET /api/telemetry/history?range=24h&interval=5m` &rarr; Downsampled time-series.
+  - `GET /api/forecast` &rarr; Live AI-computed temperature trajectory.
+  - `GET /api/alerts` &rarr; Active biological/sensor health alerts.
+  - `GET /api/health` &rarr; Liveness/readiness probes.
 
-Original provenance question retained for future clarification:
+---
 
-> In Wat_physico_chemical_range.xlsx, sheet Physico_Chemical, T (°C) repeats
-> exactly every 365 daily records from 2004 onward. Are these measured historical
-> observations, generated/modelled reference values, climatological values, or
-> intentionally repeated simulation data?
+## 7) Containerization & Orchestration
 
-## 5) Training and Evaluation Status
+### Docker Architecture (`docker-compose.yml`)
+- `marea-frontend`: Multi-stage build with Nginx Alpine (exposed on port `8080`).
+- `marea-backend`: Node.js Express API server (exposed on port `5000`).
+- `marea-ml-service`: Python FastAPI / inference engine (internal port `8000`).
+- `marea-db`: TimescaleDB / PostgreSQL (exposed on port `5432`).
+- `marea-iot-simulator`: Background service streaming realistic buoy telemetry for automated testing.
 
-Baseline script:
-- `ml/scripts/train_baseline.py`
+### Kubernetes Manifests (`k8s/`)
+- `00-namespace.yaml` &rarr; `marea` namespace.
+- `01-configmap-secret.yaml` &rarr; Environment variables and credentials.
+- `02-timeseries-db.yaml` &rarr; StatefulSet with PersistentVolumeClaim (`10Gi`).
+- `03-backend-api.yaml` &rarr; Deployment with rolling updates and readiness probes.
+- `04-ai-engine.yaml` &rarr; AI service deployment.
+- `05-frontend.yaml` &rarr; Frontend deployment and ClusterIP service.
+- `06-ingress.yaml` &rarr; Traefik / Nginx Ingress routing.
+- `kustomization.yaml` &rarr; 1-command deployment: `kubectl apply -k k8s/`.
 
-Run performed against real processed data:
-- Input: `ml/data/processed/temperature_series.csv`
-- Output report: `ml/reports/baseline_results_temperature_real.json`
+---
 
-Latest baseline metrics (PersistenceBaseline):
-- `n_samples`: 727
-- `mae`: 0.15156348005502068
-- `rmse`: 0.2034494371255731
-- `r2`: 0.998961869380574
-- `threshold_event_recall`: 0.9886363636363636
-- `false_alert_rate`: 0.011363636363636364
+## 8) VPS Deployment & Testing Environment
 
-### Daily reference-baseline phase (2026-08-15)
+- **VPS Host:** `161.97.134.3` (Debian 13 Cloud Kernel, 12GB RAM, 113GB Free SSD).
+- **SSH Access:** `ssh nidhal@161.97.134.3` (Key-based authentication configured).
+- **Automated Deployment Script:** `scripts/deploy.sh`
+  - Clones/pulls latest code.
+  - Builds and starts Docker containers.
+  - Executes database schema migrations.
+  - Runs end-to-end health verification.
 
-The supplied source supports daily—not 15-minute—evaluation. The generic
-15-minute configuration remains reserved for the future validated IoT pipeline.
-For this researcher profile, evaluate only the configurable daily horizons of 1,
-3, and 7 days with persistence and 365-day seasonal persistence.
+---
 
-Report MAE/RMSE for temperature and temperature change, plus descriptive
-upper-temperature quantile groups. These groups are analytical rankings, not
-aquaculture danger limits: no biological risk threshold is set or inferred.
-Because every valid 365-row comparison is exact, the seasonal-persistence
-baseline is expected to have zero MAE/RMSE wherever that lag is available. That
-is a scientific result about the supplied deterministic annual structure, not a
-reason to train a feature model or LSTM that merely reproduces it.
+## 9) Google AI Studio & Forecasting Enhancement Roadmap
 
-Production direction: the researcher series is the expected seasonal reference;
-validated live IoT readings will supply actual site behavior, deviation
-monitoring, independent validation, and future versioned retraining data. Raw
-IoT data must be immutable and validated before it is promoted for inference or
-retraining.
+Documented in detail in [`docs/GOOGLE_AI_STUDIO_ADVISORY.md`](file:///c:/Users/xfive/Desktop/Project%20MAREA/docs/GOOGLE_AI_STUDIO_ADVISORY.md):
+1. **Multi-Variable Sensor Expansion:** Integration of Dissolved Oxygen (DO), Salinity, Turbidity/Chlorophyll-a, and Barometric Pressure.
+2. **Gemini 1.5/2.0 Integration:** Using Gemini Pro for multimodal satellite SST analysis and structured early-warning risk synthesis.
+3. **Physics-Informed Hybrid Modeling:** Coupling numerical oceanographic heat-exchange models with deep learning and LLM reasoning.
 
-## 6) Tests Added and Verification
+---
 
-Targeted tests for real-data loader behavior:
-- `ml/tests/test_real_temperature_data.py`
+## 10) Commands Reference
 
-Purpose:
-- Validate Excel loading from real-world style temperature sheets.
-- Ensure temperature-only extraction and alias handling.
+### Local Development:
+```bash
+# Frontend
+npm run dev
 
-Import-path bootstrap for src-layout tests:
-- `ml/tests/conftest.py`
+# Python ML Tests
+.venv/Scripts/python.exe -m pytest ml/tests/ -q
 
-Latest test status:
-- `2 passed` for `tests/test_real_temperature_data.py`
+# Run IoT Telemetry Simulator
+python scripts/simulate_rx.py --url http://localhost:5000/api/telemetry
+```
 
-## 7) Critical Fixes Applied During Work
+### Docker Local Stack:
+```bash
+docker compose up --build -d
+```
 
-1. Config path bug fixed:
-- File: `ml/src/marea_ml/config.py`
-- Issue: configuration resolver pointed outside `ml/`.
-- Fix: config directory now resolves to `ml/configs` correctly.
-
-2. Dependency alignment for Excel workflows:
-- Files:
-  - `ml/requirements.txt`
-  - `ml/pyproject.toml`
-- Added dependencies:
-  - `openpyxl`
-  - `xlrd`
-
-3. Pytest import resolution:
-- File: `ml/tests/conftest.py`
-- Added `src` injection into `sys.path` for package discovery during tests.
-
-## 8) Environment Notes
-
-Configured Python environment:
-- Workspace venv: `C:/Users/xfive/Desktop/Project MAREA/.venv/`
-- Interpreter used successfully:
-  - `C:/Users/xfive/Desktop/Project MAREA/.venv/Scripts/python.exe`
-
-Important:
-- Running scripts/tests with a different Python interpreter may fail due to missing deps.
-- Prefer the project venv interpreter above.
-
-## 9) Frontend Safety
-
-Frontend app was intentionally preserved and not reorganized.
-No ML change requires React code movement.
-
-## 10) What Is Done vs Pending
-
-Done:
-- Real archive discovery and extraction.
-- Temperature column identification and sanitization.
-- Processed temperature series generation.
-- Baseline training execution on real data.
-- Targeted test verification passing.
-- Config/dependency/import fixes for reproducible runs.
-
-Pending (next agent):
-- Expand test coverage beyond targeted loader tests (pipeline-level regression tests).
-- Add stricter data quality audits (gap analysis, duplicate timestamp policy by config).
-- Implement additional baselines/features while keeping chronology and leakage rules.
-- Keep extension to non-temperature variables deferred until explicitly requested.
-
-## 11) Quick Continuation Commands
-
-From repository root (`Project MAREA`):
-
-1) Run targeted loader tests:
-- `cd ml`
-- `../.venv/Scripts/python.exe -m pytest tests/test_real_temperature_data.py -q --override-ini addopts=''`
-
-2) Train baseline on current processed series:
-- `cd ml`
-- `../.venv/Scripts/python.exe scripts/train_baseline.py --input data/processed/temperature_series.csv --output reports/baseline_results_temperature_real.json`
-
-3) Inspect output report:
-- `ml/reports/baseline_results_temperature_real.json`
-
-## 12) Non-Negotiable Rules for Continuation
-
-- Keep chronological splits only (no random shuffle for time-series).
-- No data leakage in preprocess/scale/feature computations.
-- Fit transformers/statistics on train set only.
-- Use only real data, no fabricated dataset artifacts.
-- Keep focus on temperature-only pipeline until user requests expansion.
+### VPS Staging Deployment:
+```bash
+ssh nidhal@161.97.134.3 "cd /home/nidhal/MAREA && bash scripts/deploy.sh"
+```

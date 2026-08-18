@@ -1,89 +1,167 @@
-import React, { useState, useEffect } from 'react';
-import { getAlerts, acknowledgeAlert, getSensorLabel } from '../lib/db';
-import { Alert } from '../types/marea';
-import { Bell, Check, Filter } from 'lucide-react';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
+import { useState, useEffect } from "react";
+import { Bell, BellOff, Check, Filter, AlertTriangle, ShieldCheck } from "lucide-react";
+import { PageHeader, Panel, PanelHeader, SourceNote, StatusChip, QuietEmpty } from "@/components/marea/primitives";
+import { SystemStatusBanner } from "@/components/marea/SystemStatusBanner";
+import { AlertPanel } from "@/components/marea/AlertPanel";
+import { getAlerts, acknowledgeAlert, getSensorLabel, DATA_UPDATE_EVENT } from "@/lib/db";
+import { Alert } from "@/types/marea";
+import { PageId } from "@/components/marea/AppShell";
+import { cn } from "@/lib/utils";
 
-export function Alerts() {
+export function Alerts({ onNavigate }: { onNavigate: (page: PageId) => void }) {
   const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const [filter, setFilter] = useState<"all" | "unread">("all");
+  const [dataVersion, setDataVersion] = useState(0);
 
   useEffect(() => {
     const loadAlerts = () => {
-      setAlerts(getAlerts().sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+      setAlerts(
+        getAlerts().sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      );
     };
     loadAlerts();
-    window.addEventListener('marea-data-updated', loadAlerts);
-    return () => window.removeEventListener('marea-data-updated', loadAlerts);
-  }, []);
+    window.addEventListener(DATA_UPDATE_EVENT, loadAlerts);
+    return () => window.removeEventListener(DATA_UPDATE_EVENT, loadAlerts);
+  }, [dataVersion]);
 
-  const displayedAlerts = alerts.filter(a => filter === 'all' || !a.acknowledged);
+  const unreadAlerts = alerts.filter((a) => !a.acknowledged);
+  const displayedAlerts = alerts.filter((a) => filter === "all" || !a.acknowledged);
 
   return (
-    <div className="space-y-6">
-      <header className="flex justify-between items-end">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Alertes</h1>
-          <p className="text-slate-500 mt-1">Anomalies détectées par rapport aux seuils configurés.</p>
-        </div>
-        
-        <div className="flex bg-slate-100 p-1 rounded-lg">
-          <button 
-            onClick={() => setFilter('all')}
-            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${filter === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-          >
-            Toutes
-          </button>
-          <button 
-            onClick={() => setFilter('unread')}
-            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-2 ${filter === 'unread' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-          >
-            Non lues
-            {alerts.filter(a => !a.acknowledged).length > 0 && (
-              <span className="w-2 h-2 rounded-full bg-red-500"></span>
-            )}
-          </button>
-        </div>
-      </header>
-
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        {displayedAlerts.length === 0 ? (
-          <div className="p-12 text-center flex flex-col items-center">
-            <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-              <Check className="w-6 h-6 text-green-500" />
-            </div>
-            <h3 className="text-lg font-medium text-slate-900">Aucune alerte</h3>
-            <p className="text-sm text-slate-500 mt-1">Tout semble normal pour le moment.</p>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Operations · Early Warning"
+        title="Active Alerts & Anomaly History"
+        description="Environmental threshold violations, rate-of-change warnings, and hardware communication alerts."
+        actions={
+          <div className="flex bg-muted p-1 rounded-lg border border-border">
+            <button
+              onClick={() => setFilter("all")}
+              className={cn(
+                "px-3 py-1 text-xs font-medium rounded-md transition-colors",
+                filter === "all" ? "bg-surface text-foreground shadow-card font-semibold" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              All ({alerts.length})
+            </button>
+            <button
+              onClick={() => setFilter("unread")}
+              className={cn(
+                "px-3 py-1 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5",
+                filter === "unread" ? "bg-surface text-foreground shadow-card font-semibold" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Unread ({unreadAlerts.length})
+              {unreadAlerts.length > 0 && <span className="size-2 rounded-full bg-destructive animate-pulse" />}
+            </button>
           </div>
-        ) : (
-          <ul className="divide-y divide-slate-100">
-            {displayedAlerts.map(alert => (
-              <li key={alert.id} className={`p-4 sm:px-6 hover:bg-slate-50 transition-colors flex items-start gap-4 ${!alert.acknowledged ? 'bg-red-50/30' : ''}`}>
-                <div className={`mt-1 rounded-full p-2 ${!alert.acknowledged ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-400'}`}>
-                  <Bell className="w-5 h-5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-slate-900">{getSensorLabel(alert.sensor_type)}</span>
-                    <span className="text-xs text-slate-500">• {format(new Date(alert.created_at), 'dd MMM yyyy, HH:mm', { locale: fr })}</span>
-                  </div>
-                  <p className={`text-sm mt-1 ${!alert.acknowledged ? 'text-slate-900 font-medium' : 'text-slate-600'}`}>
-                    {alert.message}
-                  </p>
-                </div>
-                {!alert.acknowledged && (
-                  <button 
-                    onClick={() => acknowledgeAlert(alert.id)}
-                    className="flex-shrink-0 ml-4 px-3 py-1.5 bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-colors"
+        }
+      />
+
+      <SystemStatusBanner onNavigate={onNavigate} />
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
+        {/* Main Alert Feed */}
+        <Panel className="xl:col-span-2 overflow-hidden">
+          <PanelHeader
+            eyebrow="Feed"
+            title="Warning Incident Log"
+            description="Detailed record of environmental deviations and operator dismissals."
+            actions={
+              <StatusChip tone={unreadAlerts.length > 0 ? "caution" : "positive"}>
+                {unreadAlerts.length > 0 ? `${unreadAlerts.length} Unresolved` : "All Clear"}
+              </StatusChip>
+            }
+          />
+
+          <div className="p-0">
+            {displayedAlerts.length === 0 ? (
+              <div className="p-10">
+                <QuietEmpty>
+                  <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
+                    <ShieldCheck className="size-4 text-positive" />
+                    No warnings found
+                  </span>
+                  <span className="mt-1 block text-xs">
+                    {filter === "unread"
+                      ? "All previous warnings have been acknowledged."
+                      : "No threshold violations have been recorded yet."}
+                  </span>
+                </QuietEmpty>
+              </div>
+            ) : (
+              <ul className="divide-y divide-border">
+                {displayedAlerts.map((alert) => (
+                  <li
+                    key={alert.id}
+                    className={cn(
+                      "p-4 sm:px-5 flex items-start justify-between gap-4 transition-colors",
+                      !alert.acknowledged ? "bg-destructive/5" : "bg-surface hover:bg-muted/30"
+                    )}
                   >
-                    Marquer vue
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div
+                        className={cn(
+                          "mt-0.5 rounded-full p-1.5 shrink-0",
+                          !alert.acknowledged
+                            ? "bg-destructive/15 text-destructive"
+                            : "bg-muted text-muted-foreground"
+                        )}
+                      >
+                        <AlertTriangle className="size-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold uppercase tracking-wider text-foreground">
+                            {getSensorLabel(alert.sensor_type)}
+                          </span>
+                          <span className="text-[0.7rem] text-muted-foreground">
+                            · {new Date(alert.created_at).toLocaleString([], {
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                          {alert.acknowledged && (
+                            <span className="text-[0.65rem] bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
+                              Dismissed
+                            </span>
+                          )}
+                        </div>
+                        <p
+                          className={cn(
+                            "text-sm mt-1",
+                            !alert.acknowledged ? "font-semibold text-foreground" : "text-muted-foreground"
+                          )}
+                        >
+                          {alert.message}
+                        </p>
+                      </div>
+                    </div>
+
+                    {!alert.acknowledged && (
+                      <button
+                        type="button"
+                        onClick={() => acknowledgeAlert(alert.id)}
+                        className="shrink-0 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted transition-colors shadow-xs"
+                      >
+                        Acknowledge
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <SourceNote>
+            Alerts trigger automatically whenever a measured value exceeds the configured min or max threshold.
+          </SourceNote>
+        </Panel>
+
+        {/* Watchlist conditions */}
+        <AlertPanel compact />
       </div>
     </div>
   );

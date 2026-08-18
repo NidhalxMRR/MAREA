@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: marea
+  labels:
+    app.kubernetes.io/name: marea
+    app.kubernetes.io/part-of: environmental-intelligence

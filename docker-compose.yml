@@ -1,0 +1,91 @@
+services:
+  # =====================================================
+  # 1. TIME-SERIES DATABASE (TimescaleDB / PostgreSQL)
+  # =====================================================
+  marea-db:
+    image: timescale/timescaledb:latest-pg16
+    container_name: marea-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: marea_db
+      POSTGRES_USER: marea
+      POSTGRES_PASSWORD: marea_secret_2026
+    ports:
+      - "5432:5432"
+    volumes:
+      - marea-db-data:/var/lib/postgresql/data
+      - ./server/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U marea -d marea_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - marea-network
+
+  # =====================================================
+  # 2. MAREA BACKEND API & INGESTION SERVER
+  # =====================================================
+  marea-backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    container_name: marea-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      DATABASE_URL: postgres://marea:marea_secret_2026@marea-db:5432/marea_db
+    ports:
+      - "5000:5000"
+    depends_on:
+      marea-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - marea-network
+
+  # =====================================================
+  # 3. MAREA FRONTEND WEB DASHBOARD (NGINX)
+  # =====================================================
+  marea-frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    container_name: marea-frontend
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      marea-backend:
+        condition: service_healthy
+    networks:
+      - marea-network
+
+  # =====================================================
+  # 4. OPTIONAL: IoT BUOY TELEMETRY SIMULATOR
+  # =====================================================
+  marea-simulator:
+    image: python:3.11-alpine
+    container_name: marea-simulator
+    restart: unless-stopped
+    volumes:
+      - ./scripts/simulate_rx.py:/app/simulate_rx.py:ro
+    command: ["python", "/app/simulate_rx.py", "--url", "http://marea-backend:5000/api/telemetry", "--interval", "5.0"]
+    depends_on:
+      marea-backend:
+        condition: service_healthy
+    networks:
+      - marea-network
+
+networks:
+  marea-network:
+    driver: bridge
+
+volumes:
+  marea-db-data:
+    driver: local

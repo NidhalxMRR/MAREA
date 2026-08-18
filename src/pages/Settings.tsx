@@ -1,17 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { getThresholds, updateThreshold, getSensorLabel, clearReadings, insertReadings, getSensorUnit } from '../lib/db';
-import { SensorType, Threshold } from '../types/marea';
-import { Settings2, Trash2, Zap } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { Settings2, Trash2, Zap, Radio, Sliders, Check } from "lucide-react";
+import { getThresholds, updateThreshold, getSensorLabel, clearReadings, insertReadings, getSensorUnit, DATA_UPDATE_EVENT } from "@/lib/db";
+import { SensorType, Threshold } from "@/types/marea";
+import { PageHeader, Panel, PanelHeader, SourceNote, StatusChip } from "@/components/marea/primitives";
+import { PageId } from "@/components/marea/AppShell";
+import { cn } from "@/lib/utils";
 
-export function Settings() {
+export function Settings({ onNavigate }: { onNavigate?: (page: PageId) => void }) {
   const [thresholds, setThresholds] = useState<Threshold[]>([]);
   const [isAutoSimulating, setIsAutoSimulating] = useState(false);
+  const [saveToast, setSaveToast] = useState<string | null>(null);
 
   useEffect(() => {
     const loadThresholds = () => setThresholds(getThresholds());
     loadThresholds();
-    window.addEventListener('marea-data-updated', loadThresholds);
-    return () => window.removeEventListener('marea-data-updated', loadThresholds);
+    window.addEventListener(DATA_UPDATE_EVENT, loadThresholds);
+    return () => window.removeEventListener(DATA_UPDATE_EVENT, loadThresholds);
   }, []);
 
   useEffect(() => {
@@ -26,123 +30,168 @@ export function Settings() {
 
   const handleUpdate = (sensor_type: SensorType, min: number, max: number) => {
     updateThreshold(sensor_type, min, max);
+    setSaveToast(`Saved ${getSensorLabel(sensor_type)} threshold.`);
+    setTimeout(() => setSaveToast(null), 3000);
   };
 
   const simulateRealtimeData = () => {
     const currentThresholds = getThresholds();
-    const sensors: SensorType[] = ['temperature', 'ph', 'salinity', 'turbidity'];
+    const sensors: SensorType[] = ["temperature", "ph", "salinity", "turbidity"];
     const randomSensor = sensors[Math.floor(Math.random() * sensors.length)];
 
-    const isAnomalous = Math.random() > 0.7;
-    const currentThreshold = currentThresholds.find(t => t.sensor_type === randomSensor);
+    const isAnomalous = Math.random() > 0.75;
+    const currentThreshold = currentThresholds.find((t) => t.sensor_type === randomSensor);
 
     let value = 0;
     if (currentThreshold) {
       if (isAnomalous) {
         value = Math.random() > 0.5
-          ? currentThreshold.max_value + (Math.random() * 5)
-          : currentThreshold.min_value - (Math.random() * 5);
+          ? currentThreshold.max_value + (Math.random() * 3 + 0.5)
+          : currentThreshold.min_value - (Math.random() * 3 + 0.5);
       } else {
         value = currentThreshold.min_value + Math.random() * (currentThreshold.max_value - currentThreshold.min_value);
       }
     } else {
-      value = Math.random() * 100;
+      value = 20.0 + Math.random() * 5;
     }
 
-    insertReadings([{
-      timestamp: new Date().toISOString(),
-      sensor_type: randomSensor,
-      value,
-      unit: getSensorUnit(randomSensor),
-      source: 'sonde',
-    }]);
+    insertReadings([
+      {
+        timestamp: new Date().toISOString(),
+        sensor_type: randomSensor,
+        value,
+        unit: getSensorUnit(randomSensor),
+        source: "sonde",
+      },
+    ]);
   };
 
   return (
-    <div className="space-y-6 max-w-4xl">
-      <header>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Réglages</h1>
-        <p className="text-slate-500 mt-1">Configuration des seuils et outils de test.</p>
-      </header>
+    <div className="space-y-8 max-w-5xl">
+      <PageHeader
+        eyebrow="System · Configuration"
+        title="Settings & Hardware Simulator"
+        description="Configure dynamic alert thresholds, run live TTGO LoRa32 simulation streams, and manage local telemetry storage."
+        actions={
+          saveToast ? (
+            <StatusChip tone="positive" icon={<Check className="size-3.5" />}>
+              {saveToast}
+            </StatusChip>
+          ) : undefined
+        }
+      />
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-100 flex items-center gap-3">
-          <Settings2 className="w-5 h-5 text-slate-400" />
-          <h2 className="text-lg font-semibold text-slate-900">Seuils d'alerte</h2>
-        </div>
-        <div className="p-6">
-          <p className="text-sm text-slate-500 mb-6">Définissez les plages normales pour chaque type de capteur. Toute valeur en dehors de ces seuils générera une alerte.</p>
-          
-          <div className="space-y-6">
-            {thresholds.map(threshold => (
-              <ThresholdForm 
-                key={threshold.id} 
-                threshold={threshold} 
-                onSave={(min, max) => handleUpdate(threshold.sensor_type, min, max)} 
+      {/* Threshold Configuration */}
+      <Panel className="overflow-hidden">
+        <PanelHeader
+          eyebrow="Early Warning Criteria"
+          title="Environmental Threshold Boundaries"
+          description="Readings outside these boundaries trigger immediate warning alerts on the dashboard and log feed."
+          actions={<StatusChip tone="neutral">4 Active Bounds</StatusChip>}
+        />
+        <div className="p-6 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {thresholds.map((threshold) => (
+              <ThresholdForm
+                key={threshold.id}
+                threshold={threshold}
+                onSave={(min, max) => handleUpdate(threshold.sensor_type, min, max)}
               />
             ))}
           </div>
         </div>
-      </div>
+        <SourceNote>
+          Threshold values are evaluated synchronously as each sensor reading is ingested.
+        </SourceNote>
+      </Panel>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-6 border-b border-slate-100 flex items-center gap-3">
-            <Zap className="w-5 h-5 text-yellow-500" />
-            <h2 className="text-lg font-semibold text-slate-900">Simulateur (Temps Réel)</h2>
-          </div>
-          <div className="p-6">
-            <p className="text-sm text-slate-500 mb-4">
-              En attendant la connexion de la vraie sonde, utilisez ce bouton pour injecter une fausse mesure (parfois hors seuil) et tester les alertes.
+      {/* Simulator & Database Tools */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+        {/* Simulator Card */}
+        <Panel className="overflow-hidden">
+          <PanelHeader
+            eyebrow="Hardware Test"
+            title="TTGO LoRa32 Telemetry Simulator"
+            description="Inject simulated 17-field sensor packets into the local stream to test alert responses and chart renders."
+            actions={<StatusChip tone={isAutoSimulating ? "positive" : "pending"}>{isAutoSimulating ? "Broadcasting" : "Idle"}</StatusChip>}
+          />
+          <div className="p-6 space-y-3">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Generates random DS18B20 temperatures, pH, salinity, or turbidity readings with occasional simulated thermal excursions.
             </p>
-            <button 
-              onClick={simulateRealtimeData}
-              className="w-full flex justify-center items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-            >
-              Injecter une mesure de test
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsAutoSimulating(prev => !prev)}
-              className="mt-3 w-full flex justify-center items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200 transition-colors"
-            >
-              {isAutoSimulating ? 'Arrêter la simulation automatique' : 'Démarrer la simulation automatique'}
-            </button>
+            <div className="space-y-2 pt-2">
+              <button
+                type="button"
+                onClick={simulateRealtimeData}
+                className="w-full flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                <Zap className="size-4" />
+                Inject Single Telemetry Packet
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsAutoSimulating((prev) => !prev)}
+                className={cn(
+                  "w-full flex items-center justify-center gap-2 rounded-lg border border-border px-4 py-2.5 text-xs font-semibold transition-colors",
+                  isAutoSimulating
+                    ? "bg-destructive/10 text-destructive border-destructive/30 hover:bg-destructive/20"
+                    : "bg-surface text-foreground hover:bg-muted"
+                )}
+              >
+                <Radio className="size-4" />
+                {isAutoSimulating ? "Stop Automatic Telemetry Stream" : "Start Automatic Telemetry Stream (5s)"}
+              </button>
+            </div>
           </div>
-        </div>
+          <SourceNote>
+            Simulated packets are tagged with <code className="text-xs bg-muted px-1 rounded font-mono">source: sonde</code> to mimic field hardware.
+          </SourceNote>
+        </Panel>
 
-        <div className="bg-white rounded-2xl border border-red-200 shadow-sm overflow-hidden">
-          <div className="p-6 border-b border-red-100 flex items-center gap-3 bg-red-50/50">
-            <Trash2 className="w-5 h-5 text-red-500" />
-            <h2 className="text-lg font-semibold text-red-900">Zone de danger</h2>
-          </div>
-          <div className="p-6">
-            <p className="text-sm text-slate-500 mb-4">
-              Supprimez toutes les données (historique, temps réel et alertes) pour repartir de zéro. Les seuils seront conservés.
+        {/* Database Management Card */}
+        <Panel className="overflow-hidden border-destructive/30">
+          <PanelHeader
+            eyebrow="Maintenance"
+            title="Database Management"
+            description="Clear stored readings and alert logs from the browser's local database."
+            actions={<StatusChip tone="caution">Caution</StatusChip>}
+          />
+          <div className="p-6 space-y-4">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Clears all historical and live readings as well as acknowledged and unacknowledged alerts. Configured threshold boundaries are preserved.
             </p>
-            <button 
-              onClick={() => {
-                if(window.confirm('Êtes-vous sûr de vouloir supprimer toutes les mesures ? Cette action est irréversible.')) {
-                  clearReadings();
-                }
-              }}
-              className="w-full flex justify-center items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors"
-            >
-              Effacer toutes les données
-            </button>
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm("Are you sure you want to delete all stored readings and alerts?")) {
+                    clearReadings();
+                  }
+                }}
+                className="w-full flex items-center justify-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2.5 text-xs font-semibold text-destructive hover:bg-destructive/20 transition-colors"
+              >
+                <Trash2 className="size-4" />
+                Clear All Telemetry & Alerts
+              </button>
+            </div>
           </div>
-        </div>
+          <SourceNote>
+            This action resets the local storage instance without affecting the python ML package or firmware files.
+          </SourceNote>
+        </Panel>
       </div>
     </div>
   );
 }
 
-const ThresholdForm: React.FC<{ threshold: Threshold, onSave: (min: number, max: number) => void }> = ({ threshold, onSave }) => {
+const ThresholdForm: React.FC<{ threshold: Threshold; onSave: (min: number, max: number) => void }> = ({
+  threshold,
+  onSave,
+}) => {
   const [min, setMin] = useState(threshold.min_value);
   const [max, setMax] = useState(threshold.max_value);
   const [isDirty, setIsDirty] = useState(false);
 
-  // Sync state if external changes happen
   useEffect(() => {
     setMin(threshold.min_value);
     setMax(threshold.max_value);
@@ -156,41 +205,58 @@ const ThresholdForm: React.FC<{ threshold: Threshold, onSave: (min: number, max:
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row sm:items-end gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
-      <div className="flex-1">
-        <label className="block text-sm font-semibold text-slate-900 mb-2">
-          {getSensorLabel(threshold.sensor_type)} <span className="text-slate-400 font-normal">({getSensorUnit(threshold.sensor_type)})</span>
+    <form
+      onSubmit={handleSubmit}
+      className="p-4 rounded-xl border border-border bg-surface flex flex-col justify-between space-y-3"
+    >
+      <div className="flex items-center justify-between">
+        <label className="text-xs font-semibold text-foreground uppercase tracking-wider">
+          {getSensorLabel(threshold.sensor_type)}{" "}
+          <span className="text-muted-foreground font-normal">({getSensorUnit(threshold.sensor_type)})</span>
         </label>
-        <div className="flex items-center gap-3">
-          <div className="flex-1">
-            <label className="block text-xs text-slate-500 mb-1">Seuil minimum</label>
-            <input 
-              type="number" 
-              step="any"
-              value={min} 
-              onChange={e => { setMin(parseFloat(e.target.value)); setIsDirty(true); }}
-              className="w-full border-slate-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500" 
-            />
-          </div>
-          <div className="flex-1">
-            <label className="block text-xs text-slate-500 mb-1">Seuil maximum</label>
-            <input 
-              type="number" 
-              step="any"
-              value={max} 
-              onChange={e => { setMax(parseFloat(e.target.value)); setIsDirty(true); }}
-              className="w-full border-slate-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500" 
-            />
-          </div>
+        {isDirty && (
+          <span className="text-[0.65rem] text-primary font-medium">Unsaved</span>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-[0.7rem] font-medium text-muted-foreground mb-1">Min Threshold</label>
+          <input
+            type="number"
+            step="any"
+            value={min}
+            onChange={(e) => {
+              setMin(parseFloat(e.target.value) || 0);
+              setIsDirty(true);
+            }}
+            className="w-full rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-mono font-medium text-foreground outline-none focus:ring-1 focus:ring-primary"
+          />
+        </div>
+        <div>
+          <label className="block text-[0.7rem] font-medium text-muted-foreground mb-1">Max Threshold</label>
+          <input
+            type="number"
+            step="any"
+            value={max}
+            onChange={(e) => {
+              setMax(parseFloat(e.target.value) || 0);
+              setIsDirty(true);
+            }}
+            className="w-full rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-mono font-medium text-foreground outline-none focus:ring-1 focus:ring-primary"
+          />
         </div>
       </div>
-      <button 
-        type="submit" 
-        disabled={!isDirty}
-        className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 disabled:opacity-50 disabled:bg-slate-300 disabled:text-slate-500 transition-colors"
-      >
-        Enregistrer
-      </button>
+
+      <div className="flex justify-end pt-1">
+        <button
+          type="submit"
+          disabled={!isDirty}
+          className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-opacity"
+        >
+          Save Threshold
+        </button>
+      </div>
     </form>
   );
-}
+};

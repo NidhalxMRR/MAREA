@@ -1,0 +1,115 @@
+name: MAREA CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  # =====================================================
+  # 1. CODE QUALITY & TESTS
+  # =====================================================
+  lint-and-test:
+    name: Lint, Typecheck & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Frontend & Root Dependencies
+        run: npm ci
+
+      - name: TypeScript Typecheck Frontend
+        run: npx tsc --noEmit
+
+      - name: Build Frontend Assets
+        run: npm run build
+
+      - name: Install Server Dependencies & Compile
+        run: |
+          cd server
+          npm ci
+          npm run build
+
+      - name: Setup Python Environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python ML Dependencies & Run Tests
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r ml/requirements.txt pytest
+          python -m pytest ml/tests/ -q
+
+  # =====================================================
+  # 2. DOCKER BUILD & VERIFICATION
+  # =====================================================
+  docker-build:
+    name: Build Container Images
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Frontend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.frontend
+          push: false
+          tags: marea-frontend:latest
+
+      - name: Build Backend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.backend
+          push: false
+          tags: marea-backend:latest
+
+  # =====================================================
+  # 3. AUTOMATED DEPLOYMENT TO TESTING VPS
+  # =====================================================
+  deploy-vps:
+    name: Deploy to Testing VPS
+    needs: [lint-and-test, docker-build]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Execute Remote Deployment over SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST || '161.97.134.3' }}
+          username: ${{ secrets.VPS_USER || 'nidhal' }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            echo "=========================================="
+            echo "  DEPLOYING PROJECT MAREA TO VPS          "
+            echo "=========================================="
+            if [ ! -d "/home/nidhal/MAREA" ]; then
+              git clone https://github.com/NidhalxMRR/MAREA.git /home/nidhal/MAREA
+            fi
+            cd /home/nidhal/MAREA
+            git fetch --all
+            git reset --hard origin/main
+            docker compose down || true
+            docker compose up --build -d
+            echo "[+] Deployment completed successfully!"
