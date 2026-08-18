@@ -1,4 +1,4 @@
-# Project MAREA: Marine Aquaculture Risk & Early-warning Analytics
+# Project MAREA: Marine Aquaculture Risk & Early-warning Analytics live demo : http://161.97.134.3:8080/
 
 [![CI/CD Pipeline](https://github.com/NidhalxMRR/MAREA/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/NidhalxMRR/MAREA/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
