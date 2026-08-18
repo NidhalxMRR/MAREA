@@ -73,7 +73,7 @@ GROUND TRUTH LIVE BUOY TELEMETRY:
 - Safe Thermal Range for Seabass/Seabream: 14.0°C to 28.5°C (Optimum: 18-24°C)
 - Historical Annual Mean: 21.96 °C (2004 to 2013)`;
 
-        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

@@ -146,7 +146,7 @@ GROUND TRUTH SITE CONTEXT:
 - Total Logged Telemetry Readings: ${readings.length}
 - Baseline MAE: ${DAILY_BASELINES[0].persistence.mae.toFixed(3)} °C (1-day horizon)`;
 
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
