@@ -1,0 +1,180 @@
+#include <Wire.h>
+#include <SPI.h>
+#include <LoRa.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+// =====================================================
+// OLED PINS & CONFIG (TTGO LORA32 V1.3)
+// =====================================================
+
+#define I2C_SDA          21
+#define I2C_SCL          22
+#define OLED_RST         16
+
+#define SCREEN_WIDTH     128
+#define SCREEN_HEIGHT    64
+
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RST);
+
+// =====================================================
+// LORA PINS & SETTINGS (TTGO LORA32 V1.3 SX1276)
+// =====================================================
+
+#define LORA_SCK         5
+#define LORA_MISO        19
+#define LORA_MOSI        27
+#define LORA_SS          18
+#define LORA_RST         14
+#define LORA_DIO0        26
+
+// RF Configuration (Matches TX)
+#define LORA_FREQ        868.8E6
+#define LORA_BANDWIDTH   125E3
+#define LORA_SF          7
+#define LORA_CR          5
+#define LORA_SYNC_WORD   0x12
+
+// =====================================================
+// RECEIVED TELEMETRY STRUCTURE
+// =====================================================
+
+struct RxData {
+  char nodeName[16];
+  uint32_t seq;
+  float temp;
+  float ax, ay, az;
+  float gx, gy, gz;
+  bool gpsValid;
+  double lat, lon;
+  uint32_t sats;
+  float alt, hdop;
+  int rssi;
+  float snr;
+} rxData;
+
+// =====================================================
+// SETUP
+// =====================================================
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+
+  Serial.println("\n==========================================");
+  Serial.println(" TTGO LORA RECEIVER (RX)");
+  Serial.println("==========================================");
+
+  // Initialize OLED
+  Wire.begin(I2C_SDA, I2C_SCL);
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println(F("[-] OLED initialization failed!"));
+  } else {
+    display.clearDisplay();
+    display.setTextColor(SSD1306_WHITE);
+    display.setTextSize(1);
+    display.setCursor(0, 0);
+    display.println("LoRa Receiver Ready");
+    display.println("Waiting for packets...");
+    display.display();
+  }
+
+  // Initialize LoRa Radio
+  SPI.begin(LORA_SCK, LORA_MISO, LORA_MOSI, LORA_SS);
+  LoRa.setPins(LORA_SS, LORA_RST, LORA_DIO0);
+
+  if (!LoRa.begin(LORA_FREQ)) {
+    Serial.println("[-] LoRa radio initialization failed!");
+    while (1);
+  }
+
+  LoRa.setSignalBandwidth(LORA_BANDWIDTH);
+  LoRa.setSpreadingFactor(LORA_SF);
+  LoRa.setCodingRate4(LORA_CR);
+  LoRa.setSyncWord(LORA_SYNC_WORD);
+  LoRa.enableCrc();
+
+  Serial.println("[+] LoRa receiver listening on 868.8 MHz...\n");
+}
+
+// =====================================================
+// LOOP
+// =====================================================
+
+void loop() {
+  int packetSize = LoRa.parsePacket();
+  if (packetSize) {
+    String incoming = "";
+    while (LoRa.available()) {
+      incoming += (char)LoRa.read();
+    }
+
+    rxData.rssi = LoRa.packetRssi();
+    rxData.snr = LoRa.packetSnr();
+
+    parsePacket(incoming);
+    printReceivedData(incoming);
+    updateOLED();
+  }
+}
+
+// =====================================================
+// DATA PARSING & INTERFACES
+// =====================================================
+
+void parsePacket(String msg) {
+  int gpsValidInt = 0;
+
+  sscanf(msg.c_str(),
+         "%15[^,],%lu,%f,%f,%f,%f,%f,%f,%f,%d,%lf,%lf,%lu,%f,%f",
+         rxData.nodeName,
+         &rxData.seq,
+         &rxData.temp,
+         &rxData.ax, &rxData.ay, &rxData.az,
+         &rxData.gx, &rxData.gy, &rxData.gz,
+         &gpsValidInt,
+         &rxData.lat, &rxData.lon,
+         &rxData.sats,
+         &rxData.alt,
+         &rxData.hdop);
+
+  rxData.gpsValid = (gpsValidInt == 1);
+}
+
+void printReceivedData(String rawMsg) {
+  Serial.println("******************************************");
+  Serial.printf("PACKET RECEIVED | RSSI: %d dBm | SNR: %.2f dB\n", rxData.rssi, rxData.snr);
+  Serial.println("Payload: " + rawMsg);
+  Serial.println("------------------------------------------");
+  Serial.printf("Node       : %s | Packet Seq: %lu\n", rxData.nodeName, (unsigned long)rxData.seq);
+  Serial.printf("Temperature: %.2f C\n", rxData.temp);
+  Serial.printf("Accel      : X=%.2f Y=%.2f Z=%.2f m/s2\n", rxData.ax, rxData.ay, rxData.az);
+  Serial.printf("Gyro       : X=%.3f Y=%.3f Z=%.3f rad/s\n", rxData.gx, rxData.gy, rxData.gz);
+
+  if (rxData.gpsValid) {
+    Serial.printf("GPS        : Lat=%.6f, Lon=%.6f\n", rxData.lat, rxData.lon);
+    Serial.printf("GPS Fix    : Sats=%lu | Alt=%.1f m | HDOP=%.2f\n", (unsigned long)rxData.sats, rxData.alt, rxData.hdop);
+  } else {
+    Serial.printf("GPS        : NO FIX (Sats seen: %lu)\n", (unsigned long)rxData.sats);
+  }
+  Serial.println("******************************************\n");
+}
+
+void updateOLED() {
+  display.clearDisplay();
+  display.setCursor(0, 0);
+
+  display.printf("%s #%lu\n", rxData.nodeName, (unsigned long)rxData.seq);
+  display.printf("RSSI:%ddBm S:%.1f\n", rxData.rssi, rxData.snr);
+  display.printf("T:%.2fC AX:%.1f\n", rxData.temp, rxData.ax);
+
+  if (rxData.gpsValid) {
+    display.printf("La:%.4f Lo:%.4f\n", rxData.lat, rxData.lon);
+    display.printf("Sat:%lu Alt:%.0fm\n", (unsigned long)rxData.sats, rxData.alt);
+  } else {
+    display.println("GPS: NO FIX");
+    display.printf("Sats: %lu\n", (unsigned long)rxData.sats);
+  }
+
+  display.display();
+}
