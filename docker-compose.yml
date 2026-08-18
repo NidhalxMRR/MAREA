@@ -11,7 +11,7 @@ services:
       POSTGRES_USER: marea
       POSTGRES_PASSWORD: marea_secret_2026
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - marea-db-data:/var/lib/postgresql/data
       - ./server/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
