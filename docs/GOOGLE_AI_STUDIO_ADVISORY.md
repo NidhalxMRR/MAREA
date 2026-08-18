@@ -11,7 +11,7 @@
 
 This advisory report provides scientific and technical guidance for integrating **Google AI Studio** and **Gemini 1.5/2.0 Pro & Flash** models into Project MAREA to transform raw IoT buoy telemetry and historical reference series into an advanced, physics-informed environmental forecasting and early-warning platform for marine aquaculture.
 
-The current system captures live 17-field telemetry (water temperature, 6-DOF IMU wave dynamics, GPS drift, RF metrics). This document identifies missing critical oceanographic variables, outlines physics-guided ML architectures, and provides ready-to-use prompt blueprints and structured schemas for Google AI Studio.
+The current system captures live 17-field telemetry (water temperature, 6-DOF IMU wave dynamics, GPS drift, RF metrics). This document identifies missing critical oceanographic variables, outlines physics-guided ML architectures, and provides ready-to-use prompt blueprints, security guardrails, and structured schemas for Google AI Studio.
 
 ---
 
@@ -60,9 +60,48 @@ To elevate MAREA from sea-temperature projection to a comprehensive aquaculture 
 
 ---
 
-## 4. Google AI Studio & Gemini Integration Blueprint
+## 4. Chatbot Agent Upgrade: Gemini API Key & Strict Security Guardrails
 
-### 4.1 Architecture: Hybrid Physics-Informed ML + LLM Reasoning
+### 4.1 Diagnosis of Current "Ask MAREA" Chat Assistant
+The current "Ask MAREA" chatbot assistant operates on **static, hardcoded keyword matching** (`if (q.includes(...))`). This causes several critical limitations:
+1. **Static / Scripted Responses:** The agent cannot reason dynamically over new or complex environmental questions.
+2. **Lack of Guardrails:** When an operator enters an off-topic query (e.g. *"how to make mochitos"* or unrelated coding queries), the chatbot repeats a fallback lagoon sentence instead of gracefully handling domain boundaries.
+3. **Missing Live AI Linkage:** The chatbot is not yet connected to a live LLM API endpoint.
+
+### 4.2 Required Solution: Gemini API Key Prompt & Real-Time Grounding
+To activate true generative reasoning, the system requires:
+1. **Interactive API Key Prompt:** A UI banner/dialog prompting the operator to insert their **Google Gemini API Key** (`gemini-1.5-flash` or `gemini-2.0-flash`), stored securely in `localStorage` or injected via server environment variables (`GEMINI_API_KEY`).
+2. **Context Injection:** Feeding the latest 17-field buoy observation, temperature thresholds, rate of change, and site context into every prompt.
+3. **Strict Domain Guardrails:** Enforcing that the model **exclusively** answers questions related to MAREA and Bizerte Lagoon, immediately rejecting any general/unrelated questions.
+
+### 4.3 Security Guardrails System Prompt for Google AI Studio
+
+```text
+You are MAREA Environmental Intelligence Assistant, a specialized AI copilot for Project MAREA and the Bizerte Lagoon Marine Aquaculture Zone in Tunisia.
+
+CRITICAL SECURITY GUARDRAILS & DOMAIN RESTRICTIONS:
+1. STRICT DOMAIN CONSTRAINT: You ONLY answer questions regarding:
+   - Project MAREA architecture, hardware, and algorithms.
+   - Bizerte Lagoon oceanography, water temperature, and coastal environmental conditions.
+   - European Seabass (Dicentrarchus labrax), Gilthead Seabream (Sparus aurata), and Mussel aquaculture physiological limits.
+   - Real-time IoT buoy telemetry (water temperature, MPU6050 wave dynamics/acceleration/gyro, GPS coordinates, RSSI/SNR).
+   - Sensor thresholds, thermal rate of change, marine heatwave risks, and hypoxia early warnings.
+   - Historical dataset provenance and seasonal baselines.
+
+2. REJECTION OF OFF-TOPIC QUERIES:
+   If the user asks ANY question outside this domain (e.g., cooking recipes, general programming, cocktails, politics, entertainment, personal advice, trivia, etc.):
+   You MUST politely but firmly refuse to answer using this exact format:
+   "I am MAREA's specialized marine environmental assistant. I am strictly restricted to assisting with Project MAREA, Bizerte Lagoon aquaculture, buoy telemetry, and environmental early warning analytics. Please ask a question related to lagoon water conditions, sensor readings, or thermal risk thresholds."
+
+3. GROUNDING IN LIVE DATA:
+   Base your technical answers on the live telemetry and system metrics provided in the system context. Do not invent non-existent sensor values or fabricated historical records.
+```
+
+---
+
+## 5. Google AI Studio & Gemini Integration Blueprint
+
+### 5.1 Architecture: Hybrid Physics-Informed ML + LLM Reasoning
 
 ```
                                  [Live IoT Buoy Telemetry (17 Fields)]
@@ -95,11 +134,11 @@ To elevate MAREA from sea-temperature projection to a comprehensive aquaculture 
                               |      MAREA React Dashboard UI     |
                               |  - Real-Time Risk Matrix          |
                               |  - Interactive "Ask MAREA" Copilot|
-                              +-----------------------------------+
+                              +-----------------+-----------------+
 ```
 
-### 4.2 Mathematical Heat Flux Formulation for AI Reasoning
-Gemini should be instructed to evaluate net sea surface heat flux ($Q_{\text{net}}$):
+### 5.2 Mathematical Heat Flux Formulation for AI Reasoning
+Gemini evaluates net sea surface heat flux ($Q_{\text{net}}$):
 
 $$Q_{\text{net}} = Q_{\text{sw}} - Q_{\text{lw}} - Q_{\text{sensible}} - Q_{\text{latent}}$$
 
@@ -113,28 +152,7 @@ When $Q_{\text{net}} > 0$ with low wind speed ($U < 2\text{ m/s}$ derived from l
 
 ---
 
-## 5. Google AI Studio System Prompts & Structured Schemas
-
-### 5.1 System Instruction for Gemini 1.5/2.0 Pro
-
-```text
-You are MAREA-AI, an expert Marine Oceanographer and Aquaculture Environmental Intelligence Model specialized in coastal Mediterranean lagoons (Bizerte Lagoon, Tunisia).
-
-Your role is to analyze 17-field live IoT buoy telemetry, wave dynamics, and climatological temperature trajectories to generate precise multi-horizon forecasts, detect thermal stratification risks, and provide actionable mitigations for fish and bivalve farmers.
-
-Aquaculture Physiological Guidelines for Bizerte Lagoon:
-- European Seabass (Dicentrarchus labrax) & Gilthead Seabream (Sparus aurata):
-  * Optimal thermal range: 18.0°C to 24.0°C.
-  * Stress threshold: > 26.5°C (reduced feeding, lower immune response).
-  * Critical mortality threshold: > 29.0°C (severe metabolic distress, risk of hypoxia).
-- Mediterranean Mussels (Mytilus galloprovincialis):
-  * Thermal threshold: > 26.0°C triggers spawning stress or mass drop-off from longlines.
-- Rate-of-Change Warning: |dT/dt| > 1.5°C in 6 hours indicates thermal shock risk.
-
-Always output strictly valid JSON conforming to the requested schema.
-```
-
-### 5.2 Structured Output JSON Schema for Google AI Studio
+## 6. Structured Output JSON Schema for Google AI Studio
 
 ```json
 {
@@ -199,10 +217,10 @@ Always output strictly valid JSON conforming to the requested schema.
 
 ---
 
-## 6. Actionable Implementation Checklist for Researchers
+## 7. Actionable Implementation Checklist for Researchers
 
-1. **Deploy the Ingestion API & Time-Series DB:** Run `scripts/deploy.sh` on the VPS to capture all incoming IoT packets.
-2. **Collect 30 Days of Continuous In-Situ Telemetry:** Establish true lagoon baseline variance against the historical 10-year reference.
-3. **Configure Google AI Studio API Key:** Add `GEMINI_API_KEY` to `.env` to enable live LLM environmental risk synthesis.
+1. **Insert Gemini API Key:** Operators configure their key directly in the "Ask MAREA" panel or `.env`.
+2. **Deploy the Ingestion API & Time-Series DB:** Run `scripts/deploy.sh` on the VPS to capture all incoming IoT packets.
+3. **Collect 30 Days of Continuous In-Situ Telemetry:** Establish true lagoon baseline variance against the historical 10-year reference.
 4. **Integrate Dissolved Oxygen (DO) Sensor:** Priority #1 hardware expansion for water quality and hypoxia prevention.
 5. **Calibrate Numerical Heat Flux Coefficients:** Use the Bizerte Lagoon surface area ($128\text{ km}^2$) and mean depth ($7\text{ m}$) for physics loss regularization in model training.
